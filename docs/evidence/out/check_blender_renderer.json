@@ -1,0 +1,33 @@
+{
+ "blender_version": "5.0.1",
+ "draft_render_view_as_is": "crashed: AttributeError: 'Scene' object has no attribute 'node_tree'",
+ "shift_x_as_in_draft": {
+  "silhouette_IoU_vs_COLMAP_reference": 0.0,
+  "silhouette_centroid_px": [
+   239.5,
+   199.5
+  ],
+  "reference_centroid_px": [
+   399.5,
+   199.5
+  ]
+ },
+ "shift_x_sign_flipped": {
+  "silhouette_IoU_vs_COLMAP_reference": 0.998,
+  "silhouette_centroid_px": [
+   399.5,
+   199.5
+  ],
+  "reference_centroid_px": [
+   399.5,
+   199.5
+  ],
+  "normal_pass_mean_err_deg": {
+   "if_world_frame": 0.58,
+   "if_opencv_camera_frame": 85.33,
+   "if_blender_camera_frame": 71.76
+  },
+  "depth_pass_mean_abs_err_vs_planar_z_m": 0.0
+ },
+ "ply_import_keeps_coordinates": true
+}

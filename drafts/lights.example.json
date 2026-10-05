@@ -1,0 +1,11 @@
+{
+  "_comment": "Directions are in the same world frame colmap model_aligner produced: metres, origin at the turntable's rotation centre, as measured at turntable step 0 (before any rotation). rotation_axis_world should be the same up-axis used when building the model_aligner reference-coordinates file. Measure each light's direction once per rig -- from the light toward the capture volume centre -- not per item.",
+  "rotation_axis_world": [0, 0, 1],
+  "degrees_per_step": 5.0,
+  "lights": [
+    { "id": 0, "role": "diffuse_reference", "direction_at_step_zero": [0.0, -0.35, 0.94] },
+    { "id": 1, "role": "ps", "direction_at_step_zero": [0.82, 0.30, 0.49] },
+    { "id": 2, "role": "ps", "direction_at_step_zero": [-0.82, 0.30, 0.49] },
+    { "id": 3, "role": "ps", "direction_at_step_zero": [0.0, 0.88, 0.47] }
+  ]
+}

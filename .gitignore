@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Generated data: synthetic test datasets (~2 GB per full run), stage outputs, capture sessions
+runs/
+captures/
