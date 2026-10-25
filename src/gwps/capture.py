@@ -363,8 +363,9 @@ def run_pilot(s: Session, plan):
         s.calib("sweep", f"e{k}", "all", flat_on, exposure_s=repr(shutter_seconds(sh)), shutter=sh)
     # 2. intrinsics
     for k in range(plan.get("n_intrinsics", 15)):
-        s.ask(f"Intrinsics shot {k + 1}/{plan.get('n_intrinsics', 15)}: move the ChArUco board "
-              "(0.7-1.1x garment distance, tilt up to 35 deg, reach a new edge or corner of the frame).")
+        s.ask(f"Intrinsics shot {k + 1}/{plan.get('n_intrinsics', 15)}: move the intrinsics ChArUco board "
+              "(centre at the focus distance +-5 cm, tilt up to 35 deg in a new direction, "
+              "reach a new edge or corner of the frame).")
         s.calib("intrinsics", f"i{k}", "all", set(s.ps_ids))
     # 3. balls
     combo = plan.get("additivity_combo", s.ps_ids[:2])

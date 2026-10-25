@@ -38,10 +38,13 @@ No NVIDIA driver or CUDA is needed on this machine. The whole diagnostic runs on
 
 ```bash
 git clone git@github.com:dawud-tan/gw-ps-diagnostic.git
+git clone git@github.com:dawud-tan/charuco.git     # ChArUco board generator, next to this repository
 cd gw-ps-diagnostic
 ```
 
 The repository is public: add your SSH key to GitHub first (`ssh-keygen -t ed25519`, then paste `~/.ssh/id_ed25519.pub` under GitHub → Settings → SSH keys).
+
+The ChArUco board generator lives in [dawud-tan/charuco](https://github.com/dawud-tan/charuco) (`bikin_papan_charuco_gwps.py`, moved there on 2026-10-25). Clone it next to this repository, as above: §7 runs it as `../charuco/bikin_papan_charuco_gwps.py`, and `tests/test_B_board_generator.py` looks for it at `../charuco` (or `$CHARUCO_DIR`) and is skipped without it.
 
 Git ignores `.venv/`, `runs/` and `captures/`, so a fresh clone has none of them. `tests/conftest.py` creates `runs/`.
 
@@ -76,7 +79,7 @@ Why the pins:
 | `numpy` | 1.26.4 | `colour-science` 0.4.7 pulls in numpy 2 (CLAUDE.md → Gotchas) |
 | `colour-science` | 0.4.6 | same; used for ColorChecker colour correction (`gwps/albedo.py`) |
 | `pycolmap` | 4.2.0 | the API notes in CLAUDE.md (methods vs properties, mask naming, `Sim3d`) are for 4.2 |
-| `opencv-python-headless` | 4.11 | ChArUco pixel-convention and `phaseCorrelate` findings were measured on 4.11 |
+| `opencv-python-headless` | 4.11 | ChArUco pixel-convention and `phaseCorrelate` findings were measured on 4.11. The code also runs on OpenCV 5.0 (CLAUDE.md, 2026-10-25) |
 | `rawpy` | 0.27.1 | LibRaw 0.22.1; RAW decoding of the camera body |
 | `embreex` | — | **required**: trimesh's pure-Python ray fallback runs out of memory |
 | `xatlas`, `fast_simplification` | — | UV atlas and decimation in `stage_bake.py` |
@@ -97,7 +100,7 @@ Every line must read `ok`, including `ok   embree RayMeshIntersector constructed
 .venv/bin/python -m pytest tests -s
 ```
 
-- **Expected result** (last full run, 2026-10-01): **130 passed, 1 xfailed.** The xfail is the documented vertical-bias blind spot (`test_vertical_row_dependent_bias_is_not_rejected`); the pipeline flags such clusters with `vertical_warning`.
+- **Expected result** (last full run, 2026-10-01): **130 passed, 1 xfailed.** The xfail is the documented vertical-bias blind spot (`test_vertical_row_dependent_bias_is_not_rejected`); the pipeline flags such clusters with `vertical_warning`. Without the `charuco` checkout next to this repository (§2), `test_B`'s 4 tests are skipped: 126 passed, 4 skipped, 1 xfailed.
 - **Time:** ~45 min on an 8-core CPU, longer on 4 cores.
 - **Disk:** ~2 GB of synthetic data under `runs/_pytest`. `pytest.ini` sets `--basetemp=runs/_pytest` because Fedora's `/tmp` is a RAM-backed tmpfs with a per-user quota; pytest clears that directory at the start of each run.
 
@@ -129,7 +132,7 @@ Test file prefixes:
 | `test_A_*`, `test_N_*` | albedo / colour correction; bake to `.glb` (incl. size budget) |
 | `test_D_*` | dark fabrics and exposure brackets |
 | `test_W_*` | GW dry-run kit, the whole post-capture chain with stand-in GW meshes |
-| `test_B_*` | ChArUco board generator |
+| `test_B_*` | ChArUco board generator (`../charuco/bikin_papan_charuco_gwps.py`; skipped without that checkout) |
 
 ---
 
@@ -205,10 +208,12 @@ Order of work (details in `docs/capture_checklist.md` and CLAUDE.md → "Order o
 1. **Camera:** `sudo dnf install gphoto2`, `gphoto2 --auto-detect`, one `gphoto2 --capture-image-and-download`.
 2. **Config:** `cp config/rig.example.json config/rig.json`, then replace the Canon-style setting names with the body's own (`gphoto2 --list-config`, `--get-config <name>`). Set `ext`, `shutter_setting`, `all_lights_shutter`. `config/rig.json` is per machine.
 3. **Lights:** flash `firmware/pico2_lights/main.py` to a Raspberry Pi Pico 2 (wiring, parts and hardware checks in `firmware/pico2_lights/README.md`), `.venv/bin/pip install pyserial`. On Fedora, add yourself to `dialout` for `/dev/ttyACM0`: `sudo usermod -aG dialout $USER`, then log out and in.
-4. **ChArUco board:** `.venv/bin/python bikin_papan_charuco.py --help` designs and prints a board for the camera and distance; it writes a vector PDF and `board.json`.
+4. **Two ChArUco boards**, from the `charuco` checkout next to this repository (§2):
+   - `.venv/bin/python ../charuco/rancang_papan_charuco.py eos-r8-50mm` (or `eos-r8-35mm`) plans both for the recommended camera, including the depth of field at f/11, and prints both generator commands;
+   - `.venv/bin/python ../charuco/bikin_papan_charuco_gwps.py --help` designs and prints a board for the camera and distance; it writes a vector PDF and `board.json`. The fabric board's goes to `config/board.json`; the intrinsics board's (`--layout full`, A2 for the recommended camera) to `config/board_intrinsics.json`.
 5. **Pilot session:** `capture_session.py --plan pilot`, then stage C:
    - `stageC_radiometry.py`: noise model, linearity, additivity, LED drift → `radiometry.json`
-   - `stageC_intrinsics.py`: OPENCV intrinsics from ~15 ChArUco shots
+   - `stageC_intrinsics.py --board config/board_intrinsics.json`: OPENCV intrinsics from ~15 shots of the intrinsics board at the focus distance
    - `stageC_lights.py`: light positions (mirror + matte ball), E / axis / μ → `lights.json`
    - `undistort_lit.py`, then `stage6_controls.py`: fabric floor per placement
 6. **Garment session:** `capture_session.py --plan garment`, then `--develop`.
@@ -226,7 +231,6 @@ Never move, refocus or zoom the camera after the pilot: the lights are stored in
 CLAUDE.md                 spec, conventions, decisions, status log (read this next)
 README.md                 this file
 pytest.ini                --basetemp=runs/_pytest
-bikin_papan_charuco.py    camera-aware ChArUco board generator
 config/rig.example.json   camera / lights / turntable / capture plans template
 src/                      one CLI script per stage
 src/gwps/                 library: io, ps, compare, capture, sfm, masks, garment, bake, synth, …
@@ -238,6 +242,8 @@ drafts/                   earlier attempts with verified bugs; reference only, d
 runs/                     (ignored) outputs and pytest scratch
 captures/                 (ignored) raw captures
 ```
+
+The camera-aware ChArUco board generator is not in this repository: it is `bikin_papan_charuco_gwps.py` in the `charuco` checkout next to it (§2).
 
 Outputs land in `runs/<name>/<stage>/`: per-view `.npz` (float32, camera frame), a `meta.json` per stage, per-face heatmap `.ply` files, JSON and Markdown summaries.
 

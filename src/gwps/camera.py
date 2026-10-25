@@ -189,7 +189,7 @@ def write_colmap_txt(sparse_dir, cameras, images, points3D=None):
         f.write("# POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[]\n")
         for pid, X in (points3D or {}).items():
             X, err = (X if isinstance(X, tuple) else (X, 0.0))
-            f.write(f"{pid} {X[0]!r} {X[1]!r} {X[2]!r} 128 128 128 {err!r}\n")
+            f.write(f"{pid} {float(X[0])!r} {float(X[1])!r} {float(X[2])!r} 128 128 128 {float(err)!r}\n")
 
 
 def load_model(sparse_dir):
@@ -255,8 +255,12 @@ class OpenCVCamera:
     def rays(self, uv):
         import cv2
         uv = np.asarray(uv, np.float64).reshape(-1, 1, 2)
-        xn = cv2.undistortPointsIter(uv, self.K, self.dist, None, None,
-                                     (cv2.TERM_CRITERIA_COUNT + cv2.TERM_CRITERIA_EPS, 100, 1e-12)).reshape(-1, 2)
+        crit = (cv2.TERM_CRITERIA_COUNT + cv2.TERM_CRITERIA_EPS, 100, 1e-12)
+        if hasattr(cv2, "undistortPointsIter"):      # OpenCV 4
+            xn = cv2.undistortPointsIter(uv, self.K, self.dist, None, None, crit)
+        else:                                        # OpenCV 5 folded it into undistortPoints
+            xn = cv2.undistortPoints(uv, self.K, self.dist, R=None, P=None, criteria=crit)
+        xn = xn.reshape(-1, 2)
         d = np.concatenate([xn, np.ones((len(xn), 1))], 1)
         return d / np.linalg.norm(d, axis=1, keepdims=True)
 

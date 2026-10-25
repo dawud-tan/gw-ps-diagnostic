@@ -11,7 +11,10 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 - [ ] **Two balls, same diameter ≥ 80 mm:** one mirror (chrome), one primed matte white. Measure both diameters to 0.01 mm. Keep the mirror ball clean (gloves).
 - [ ] **Kinematic seat** (3-point or ring) on a thin, dark, rigid stand. A swapped ball must return to within **~10 µm**: every 0.1 mm of seat error moves a light by ~6 mm.
 - [ ] **Backdrop light** behind the ball positions (lit white sheet or LED panel), switchable on its own, for the **backlit silhouette** frames.
-- [ ] **ChArUco board:** generate for your camera with `bikin_papan_charuco.py` (writes `board.json`). Print at 100 % on **matte** paper and glue it flat to a rigid backing (aluminium composite or glass). **Measure a 10-square span with callipers** and put the measured square size in `board.json`.
+- [ ] **Two ChArUco boards:** generate both for your camera with `bikin_papan_charuco_gwps.py` from a checkout of [dawud-tan/charuco](https://github.com/dawud-tan/charuco) next to this repository (`../charuco/bikin_papan_charuco_gwps.py`; each run writes a `board.json`). `../charuco/rancang_papan_charuco.py eos-r8-50mm` there plans both for the recommended camera, including the depth of field, and prints both commands.
+  - **Fabric board** (fabric controls, metric board): copy its `board.json` to `config/board.json`.
+  - **Intrinsics board** (`--layout full`, no window; A2 for the recommended camera): the intrinsics shots are taken at the focus distance, where the fabric board is too small to calibrate well, so this one must cover at least half of each side of the frame there (its report's intrinsics row reads ok). Copy its `board.json` to `config/board_intrinsics.json`.
+  - Print both at 100 % on **matte** paper and glue each flat to a rigid backing (aluminium composite or glass). **Measure a 10-square span with callipers** on each and put the measured square size in its `board.json`.
 - [ ] **Fabric:** garment fabric taut and flat over the board's blank window, edges taped, no wrinkles. Note its thickness.
 - [ ] **Colour and albedo references:** a ColorChecker, and a white or grey target of known reflectance (Spectralon or a measured grey card).
 - [ ] **Warm up** the LEDs ≥ 15 min. Studio dark: nothing on except the light being captured.
@@ -20,7 +23,7 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 
 ## Capture (per camera; do not touch the camera from here on; lens polariser **crossed** unless stated)
 1. **Noise and linearity:** 10 dark frames (lens cap, PS shutter); 10 frames of an evenly lit matte white card (all-lights shutter); the same card at 6–8 shutter speeds (exposure sweep, bracketing the all-lights shutter, since the card is lit by all eight).
-2. **Intrinsics:** ~15 board shots at 0.7–1.1× the garment distance, tilted up to ±35°, together reaching every edge and corner of the frame. Any lighting.
+2. **Intrinsics:** ~15 shots of the **intrinsics board**, its centre at the focus distance (the garment position, ±5 cm), tilted up to ±35° in changing directions, together reaching every edge and corner of the frame. Any lighting. Not nearer or farther: f/11 keeps only about ±10 cm sharp around the taped focus, and at 0.7× the distance the markers blur too much to decode (CLAUDE.md, 2026-10-25).
 3. **Balls at ≥ 6 positions** spanning the garment volume (3 heights × left/right, ±8 cm in depth). At each position, without touching the seat:
    - matte ball: **silhouette** (backdrop on, PS lights off) · **ambient** (all off) · **each PS light alone**;
    - swap in the mirror ball, lens polariser **parallel**: **ambient** · **each PS light alone**; then back to crossed.
@@ -35,7 +38,7 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 ## After
 - [ ] **Don't move, refocus or zoom the camera**: the lights are calibrated in its frame, and the garment session uses it. Don't power-cycle it *during* a session (a re-seated sensor misaligns the lit frames); between sessions it's harmless.
 - [ ] Processing (the capture script wrote `calib_manifest.csv`):
-  `stageC_radiometry` (noise model, linearity, additivity, drift) → `stageC_intrinsics` → `stageC_lights --noise radiometry.json` (check: mirror vs shading < 5 mm, leave-one-out < 2 %) → `undistort_lit` → `stage6_controls` (fabric floor crossed **and** parallel) → `stage_albedo calibrate` (colour correction from the chart).
+  `stageC_radiometry` (noise model, linearity, additivity, drift) → `stageC_intrinsics --board config/board_intrinsics.json` → `stageC_lights --noise radiometry.json` (check: mirror vs shading < 5 mm, leave-one-out < 2 %) → `undistort_lit` → `stage6_controls` (fabric floor crossed **and** parallel) → `stage_albedo calibrate` (colour correction from the chart).
 
 ## Garment session (later, same rig and settings)
 ### Prepare
