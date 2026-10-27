@@ -24,7 +24,7 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 ## Capture (per camera; do not touch the camera from here on; lens polariser **crossed** unless stated)
 1. **Noise and linearity:** 10 dark frames (lens cap, PS shutter); 10 frames of an evenly lit matte white card (all-lights shutter); the same card at 6–8 shutter speeds (exposure sweep, bracketing the all-lights shutter, since the card is lit by all eight).
 2. **Intrinsics:** ~15 shots of the **intrinsics board**, its centre at the focus distance (the garment position, ±5 cm), tilted up to ±35° in changing directions, together reaching every edge and corner of the frame. Any lighting. Not nearer or farther: f/11 keeps only about ±10 cm sharp around the taped focus, and at 0.7× the distance the markers blur too much to decode (CLAUDE.md, 2026-10-25).
-3. **Balls at ≥ 6 positions** spanning the garment volume (3 heights × left/right, ±8 cm in depth). At each position, without touching the seat:
+3. **Balls at ≥ 6 positions** spanning the garment volume (3 heights × left/right, ±8 cm in depth). Mark the stand's place at the first position (p0) on the floor: the drift check (step 7) and every garment session's start-of-session check seat the matte ball there again. At each position, without touching the seat:
    - matte ball: **silhouette** (backdrop on, PS lights off) · **ambient** (all off) · **each PS light alone**;
    - swap in the mirror ball, lens polariser **parallel**: **ambient** · **each PS light alone**; then back to crossed.
 4. **Additivity:** matte ball at position 1 with **lights 1 and 2 on together** (light id `1+2`; compared with the sum of their single-light frames; a pair, not all eight, so nothing saturates).
@@ -36,7 +36,7 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 8. **Write down:** ball diameters, measured square size, fabric thickness, camera settings (shutter, aperture, ISO), polariser positions, light id ↔ physical light, file naming.
 
 ## After
-- [ ] **Don't move, refocus or zoom the camera**: the lights are calibrated in its frame, and the garment session uses it. Don't power-cycle it *during* a session (a re-seated sensor misaligns the lit frames); between sessions it's harmless.
+- [ ] **Don't move, refocus or zoom the camera**: the lights are calibrated in its frame, and the garment session uses it. Don't power-cycle it *during* a session (a re-seated sensor misaligns the lit frames); between sessions it's harmless. Every garment session starts by checking that nothing moved (start-of-session check, below).
 - [ ] Processing (the capture script wrote `calib_manifest.csv`):
   `stageC_radiometry` (noise model, linearity, additivity, drift) → `stageC_intrinsics --board config/board_intrinsics.json` → `stageC_lights --noise radiometry.json` (check: mirror vs shading < 5 mm, leave-one-out < 2 %) → `undistort_lit` → `stage6_controls` (fabric floor crossed **and** parallel) → `stage_albedo calibrate` (colour correction from the chart).
 
@@ -47,6 +47,20 @@ No garment, no GW. Result: calibrated lights and the **fabric floor**; above 3°
 - [ ] **Static exclusion mask**: paint once per rig, on one developed SfM image, white over anything static in front of the backdrop (the turntable's base, a stand, cables), black elsewhere. Save it as a PNG of the same size (`static_exclude.png`). The turntable **top** turns with the garment and stays in.
 - [ ] **Tape measurements** (write them down): the lens axis above the turntable top (±5 mm; puts the origin on the turntable top), and optionally the camera's entrance pupil to the turntable axis (checked within 1 %).
 - [ ] **Bare-mannequin reference, once per mannequin:** a garment session with the mannequin undressed (same rig, same turntable, same camera height), processed like any garment up to GW. Its raw mesh is the reference `stage_garment.py` uses to tell the garment from the mannequin and the turntable top. Mount the mannequin the same way each time; its angle doesn't matter (the reference is registered), but its pose and any removable arms or head must match. Re-scan it if the mannequin or its stand changes.
+
+### Start-of-session check (every garment session, before the metric board)
+Checks that the camera and lights are still where the pilot calibrated them: a camera knocked on its mount, a turned ring, or a moved light or gel invalidates the pilot. About 10 frames.
+- [ ] LEDs warmed up ≥ 15 min, studio dark, lens polariser **crossed**, the pilot's camera settings. The tape on the focus and aperture rings is intact.
+- [ ] Seat the **matte ball at p0**, as for the pilot's drift check. Shoot the **silhouette** (backdrop only), **ambient**, and **each PS light alone**, at the PS shutter.
+- [ ] Compare with the pilot's p0 frames (`matte_ball`, `p0` in its `calib_manifest.csv`):
+  - **Camera:** the ball's outline (from the silhouette) within **10 px** of the pilot's, and its radius within **0.5 %**.
+    - Why 10 px: the lights are known to ~5 mm (stage C, mirror vs shading), which is ≈ 0.2° at 1.3 m, or ≈ 30 px of camera rotation at fx ≈ 8,400 px (R8 + 50 mm). 10 px leaves room for re-seating p0.
+    - A refocus shows up in the radius: SfM fixes the pilot's intrinsics, and the metric check allows 1 %.
+  - **Lights:** for each light, the ambient-subtracted signal summed over the ball's disc (from that session's silhouette) within **1 %** of the pilot's (the drift gate).
+    - Use the disc sum, not `radiometry.drift`'s per-pixel median, which moves with the ball's position: 0.7 % per px on a synthetic ball of 85 px radius, so ~0.25 % per px on the real ~260 px.
+    - The disc sum stayed at 1.000 for shifts up to 10 px and read 0.980 for a light dimmed by 2 % (synthetic pilot, 2026-10-27).
+- [ ] **Any failure: don't capture.** Find the cause (the camera on its mount, a ring, a light or its gel, a changed setting), fix it, and redo the pilot before the garment session. Write the cause and the time it took in the session notes.
+- **Not scripted yet:** `capture_session.py` has no plan for these frames, and no stage compares them. The pieces exist: `gwps.sphere.find_dark_blob` and `silhouette_edges` give the outline (centre = mean of the edge points, radius = their mean distance from it).
 
 ### Capture
 - `capture_session.py --plan garment`:

@@ -9,8 +9,8 @@ Decide, with evidence, which of three verdicts applies to a garment scan.
 
 Background and prior art are in `docs/prior_art_report.md`. As of 2026-09-24 no published work supervises GW with PS normals; the report sketches an L_PS design. **Implementing L_PS is out of scope until there is a verdict.**
 
-## Status (dated log; last updated 2026-10-25)
-- **Current state:** see the 2026-09-27, 2026-09-28, 2026-09-29, 2026-10-01 and 2026-10-25 bullets at the end of this list. Earlier bullets are history, so some of their "not built" lines are out of date. The next section lists what waits on hardware and the order of work once the rig exists.
+## Status (dated log; last updated 2026-10-27)
+- **Current state:** see the 2026-09-27, 2026-09-28, 2026-09-29, 2026-10-01, 2026-10-25 and 2026-10-27 bullets at the end of this list. Earlier bullets are history, so some of their "not built" lines are out of date. The next section lists what waits on hardware and the order of work once the rig exists.
 - `drafts/` holds earlier attempts from three different generations. They contradict each other and contain verified bugs (listed below; repro scripts in `docs/evidence/`). Use them as reference only. Don't extend them in place.
 - `drafts/CLAUDE.previous.md` mentions `photometric_stereo.py`, `gw_ps_diagnostic.py` and `synth_test/`. **They are not in this directory, and Dawud no longer has them (answered 2026-09-25).** Everything is written fresh under `src/` and `tests/`.
 - **Stages 0, 3, 4, 5, 6 (synthetic controls) and 7 are built** in `src/`, with the library in `src/gwps/`. All 8 synthetic tests pass in both noise settings (19 passed plus 1 documented xfail; about 3 min on CPU).
@@ -116,9 +116,17 @@ Background and prior art are in `docs/prior_art_report.md`. As of 2026-09-24 no 
     - numpy 2, which OpenCV 5 setups bring, broke `write_colmap_txt`: it wrote `np.float64(...)` into `points3D.txt`. It now writes plain floats.
     - Run on Python 3.12, OpenCV 5.0.0, numpy 2.5.2, trimesh 5.2 + embreex 4.4, without pycolmap and rawpy: `test_C1`–`test_C6`, `test_G`, `test_B` and `test_K` pass (36 tests). `test_C7`, `test_U` and `test_8` need pycolmap and were not run, nor was the rest of the suite. The README keeps the 4.11 pin.
   - dawud-tan/charuco is **private** as of 2026-10-25; Dawud will make it public later. Until then README §2's clone and the checklist's link work only for accounts with access.
+- **2026-10-27: a start-of-session check added to `docs/capture_checklist.md`** (Dawud asked, after a review of the private business notes).
+  - **Changed:**
+    - The garment session gains "Start-of-session check", before the metric board. It shoots the matte ball at p0 (silhouette, ambient, each PS light alone) and compares it with the pilot's p0 frames.
+    - The camera passes if the ball's centre is within 10 px and its radius within 0.5 % of the pilot's. The lights pass if each light's disc sum is within 1 %. Any failure means redoing the pilot.
+    - Pilot step 3 now marks the stand's place at p0 on the floor, and the pilot's "After" item points to the check.
+  - **Not scripted:** to-do 2 under "To build before the rig".
+  - **Found:** the pilot's own drift check depends on where the re-seated ball sits (~0.25 % per px on the real ball). To-do 1 has the numbers.
+  - Docs only: no code changed and the suite was not run. The measurements used `synth_pilot.py --positions 3` on Python 3.12 / OpenCV 5.0.
 
 ## Blocked until the rig is provisioned (recorded 2026-09-27)
-Everything that runs on synthetic data is built and passes (2026-09-29); what is left before the rig needs Dawud ("Left before the rig" below). The numbered items wait on hardware or on the first real capture. A fresh session should start here, and should also confirm the open ⚠ items under Rig with Dawud.
+Everything that runs on synthetic data is built and passes (2026-09-29), except the two items under "To build before the rig" (added 2026-10-27). The rest of what is left before the rig needs Dawud ("Left before the rig" below). The numbered items wait on hardware or on the first real capture. A fresh session should start here, and should also confirm the open ⚠ items under Rig with Dawud.
 
 **Not installed on this machine (2026-09-27):**
 - gphoto2 / libgphoto2;
@@ -176,6 +184,26 @@ pycolmap 4.2.0 and rawpy 0.27.1 (LibRaw 0.22.1) are in `.venv`.
 
 **Built 2026-09-28 (were on this list):** SfM, alignment, the metric-scale check, `image_undistorter` (all in `stage_sfm.py`), rule 3 at 36 × 10° (30° bins), background masks (`stage_masks.py`), garment face selection (`stage_garment.py`), the vertical-bias flag, and the mesh-size test (`bench_mesh_size.py`, `tests/test_Z_mesh_size.py`). See the 2026-09-28 status bullets.
 - ⚠ **Mask source: built both, default `silhouette`** (a backlit frame per step, +36 frames and ~2 min per garment; works for any garment colour). The alternative is a matte black backdrop (`"mask_source": "sfm"`), which fails on dark garments. Segmentation is not built. Dawud confirms the backdrop when the rig is built (see Rig).
+
+**To build before the rig (2026-10-27; synthetic data and fake cameras, no hardware or decision needed):**
+1. **Make the pilot's drift check independent of where the ball sits.**
+   - **The problem:** `stageC_radiometry.py` checks drift with `radiometry.drift`, a per-pixel median of end / start over the matte ball at p0 under light 1. Checklist step 7 re-seats the ball at p0 after the stand has visited every other position, so any re-seating error enters the ratio.
+   - **Measured** on a synthetic pilot (`synth_pilot.py --positions 3`, 1920 × 1440, ball radius 85 px): shifting the frame by 1 / 3 / 10 px moved the ratio to 0.993 / 0.977 / 0.917 (light 1) and 1.008 / 1.022 / 1.061 (light 5), ~0.7 % per px. On the real ~260 px ball that is ~0.25 % per px, so a re-seat ~4 px (~0.6 mm at 1.3 m) off uses the whole 1 % gate.
+   - **Fix:**
+     - `gwps/capture.py` `run_pilot`, the drift step: also shoot a silhouette at the drift position (`s.calib("drift", "end", "silhouette", {backdrop})`). Add it to checklist step 7, and have `gwps.calib_synth` render it.
+     - `stageC_radiometry.py`: compare the ambient-subtracted signal summed over each frame's ball disc, the disc from that frame's own silhouette. Find the outline with `sphere.find_dark_blob` + `silhouette_edges`; the centre is the mean of the edge points, the radius their mean distance from it, and the disc is taken at 0.97 × that radius.
+     - On the same synthetic frames the disc sum read 1.0000 after 1 / 3 / 10 px shifts, 0.9800 for a light dimmed by 2 %, and 1.003 for the synthetic 0.3 % drift.
+   - **Tests:** drift frames shifted by a few px still pass; a light dimmed by 2 % fails.
+2. **Script the start-of-session check** (`docs/capture_checklist.md` → Garment session → Start-of-session check; written 2026-10-27, not scripted).
+   - **Capture:** `capture_session.py --plan check`. A `run_check` in `gwps/capture.py` (with a `check` block in `config/rig.example.json`) locks the pilot's settings, asks for the matte ball at p0 (polariser crossed), and shoots the silhouette, ambient and each PS light alone into a `calib_manifest.csv` as `matte_ball`, `p0`.
+   - **Comparison stage** (e.g. `stageC_check.py --pilot <pilot calib_manifest.csv> --check <today's>`):
+     - the camera: the ball's centre within 10 px and its radius within 0.5 % of the pilot's;
+     - the lights: each light's disc sum within 1 %, sharing item 1's code;
+     - JSON and Markdown out, and exit code 1 on failure, like the other gates.
+   - **Tests:**
+     - a synthetic pilot checked against itself passes, and so does a 3 px re-seat;
+     - the ball moved by more than 10 px, its radius changed by more than 0.5 % (a refocus), or one light dimmed by 2 % each fail;
+     - the capture side runs against the mock camera and fake gphoto2, as in `test_K_capture.py`.
 
 **Left before the rig (2026-09-29); each needs Dawud:**
 - **The GW dry run on a rented GPU:** the kit is ready and tested here (`docs/gw_dryrun.md`); it needs a pod and an OK for a run over 30 minutes.
