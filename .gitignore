@@ -7,3 +7,4 @@ __pycache__/
 # Generated data: synthetic test datasets (~2 GB per full run), stage outputs, capture sessions
 runs/
 captures/
+docs/business_strategy.md
